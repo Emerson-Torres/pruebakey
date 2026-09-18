@@ -1,0 +1,67 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Generador: produce el cliente TypeScript que usa el codigo de NestJS
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Base de datos: SQLite, un archivo local sin servidor
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Un Caso representa la interaccion de un numero de telefono con el sistema.
+model Case {
+  id        String     @id @default(cuid())
+  telefono  String
+  tipo      CaseType
+  estado    CaseStatus @default(ABIERTO)
+  intencion String? // ultima intencion detectada; se muestra en el panel
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  mensajes  Message[] // relacion 1:N: un caso tiene muchos mensajes
+
+  // telefono NO es unique: un mismo numero puede tener varios casos (consulta + reclamo)
+  @@index([telefono])
+  @@index([estado])
+  @@index([tipo])
+}
+
+// Cada mensaje del hilo: entrante (del usuario) o saliente (respuesta del bot).
+model Message {
+  id         String        @id @default(cuid())
+  caseId     String
+  case       Case          @relation(fields: [caseId], references: [id])
+  messageSid String?       @unique // ID que Twilio da al entrante; clave de la idempotencia (5.1)
+  direccion  Direction
+  texto      String
+  intencion  String? // intencion detectada de este mensaje (auditoria del hilo)
+  estado     MessageStatus @default(SENT) // salientes: PENDING -> SENT/FAILED (outbox, 5.3)
+  createdAt  DateTime      @default(now())
+
+  @@index([caseId])
+}
+
+enum CaseType {
+  CONSULTA
+  RECLAMO
+}
+
+enum CaseStatus {
+  ABIERTO
+  EN_PROCESO
+  CERRADO
+}
+
+enum Direction {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  FAILED
+}
