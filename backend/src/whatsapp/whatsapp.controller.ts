@@ -21,15 +21,19 @@ export class WhatsappController {
 
     // Traducimos del formato de Twilio (PascalCase) al que espera
     // nuestro servicio (la interfaz MensajeEntrante).
-    const resultado = await this.cases.procesarMensaje({
+        const resultado = await this.cases.procesarMensaje({
       telefono,
       texto: payload.Body,
       messageSid: payload.MessageSid,
     });
 
-    // Devolvemos la respuesta generada. En este prototipo sirve para
-    // verificar el flujo con curl; el envio real al usuario se maneja
-    // aparte (interfaz de mensajeria, mas adelante).
+    // Si el mensaje era un duplicado (idempotencia 5.1), el servicio no
+    // genero respuesta nueva. Respondemos 200 con un estado claro.
+    if ('duplicado' in resultado) {
+      return { status: 'duplicado, ignorado' };
+    }
+
+    // Caso normal: devolvemos la respuesta generada por el bot.
     return { respuesta: resultado.respuesta };
   }
 }

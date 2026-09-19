@@ -18,6 +18,7 @@ describe('CasesService', () => {
       update: jest.fn(),
     },
     message: {
+      findUnique: jest.fn(),
       create: jest.fn(),
     },
   };
@@ -25,6 +26,9 @@ describe('CasesService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
+        // Por defecto, ningun mensaje es duplicado (findUnique devuelve null).
+    // Los tests que prueban idempotencia lo sobreescriben.
+    prismaMock.message.findUnique.mockResolvedValue(null);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CasesService,
@@ -35,6 +39,31 @@ describe('CasesService', () => {
     }).compile();
 
     service = module.get<CasesService>(CasesService);
+  });
+
+  // --- Idempotencia (5.1): mismo messageSid dos veces = sin efecto ---
+
+  it('ignora un mensaje cuyo messageSid ya fue procesado (idempotencia 5.1)', async () => {
+    // Simulamos que ese messageSid YA existe en la base.
+    prismaMock.message.findUnique.mockResolvedValue({
+      id: 'msg-existente',
+      messageSid: 'SM999',
+    });
+
+    const entrante: MensajeEntrante = {
+      telefono: '+50377777777',
+      texto: 'quiero poner un reclamo',
+      messageSid: 'SM999',
+    };
+
+    const resultado = await service.procesarMensaje(entrante);
+
+    // No se debe crear ni buscar caso, ni guardar ningun mensaje nuevo.
+    expect(prismaMock.case.findFirst).not.toHaveBeenCalled();
+    expect(prismaMock.case.create).not.toHaveBeenCalled();
+    expect(prismaMock.message.create).not.toHaveBeenCalled();
+    // Y el resultado indica que fue duplicado.
+    expect(resultado).toEqual({ duplicado: true });
   });
 
   // --- Escenario 1: no hay caso activo, se crea uno nuevo ---

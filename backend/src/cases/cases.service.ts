@@ -26,11 +26,21 @@ export class CasesService {
   // busca o crea el caso, guarda el mensaje entrante, responde desde la
   // base de conocimiento y guarda el mensaje saliente.
   async procesarMensaje(entrante: MensajeEntrante) {
+    // 0. IDEMPOTENCIA (5.1): si este messageSid ya fue procesado antes
+    //    (Twilio reintenta y reenvia el mismo mensaje), no hacemos nada.
+    //    Twilio puede entregar el mismo MessageSid dos o tres veces; esto
+    //    evita duplicar mensajes, casos y respuestas.
+    const yaProcesado = await this.prisma.message.findUnique({
+      where: { messageSid: entrante.messageSid },
+    });
+    if (yaProcesado) {
+      return { duplicado: true };
+    }
+
     // 1. Detectar la intencion del texto.
     const intencion = this.intent.detectar(entrante.texto);
 
     // 2. Derivar el tipo de caso a partir de la intencion.
-    //    Solo RECLAMO abre un caso RECLAMO; el resto son CONSULTA.
     const tipo: CaseType =
       intencion === Intencion.RECLAMO ? CaseType.RECLAMO : CaseType.CONSULTA;
 
@@ -68,7 +78,6 @@ export class CasesService {
     // 7. Devolver lo necesario para responder al usuario.
     return { caso, respuesta };
   }
-
   // Aplica la regla "un caso activo por (telefono, tipo)":
   // busca un caso de ese telefono y tipo que no este CERRADO; si lo
   // encuentra lo reutiliza (y actualiza su ultima intencion), si no
