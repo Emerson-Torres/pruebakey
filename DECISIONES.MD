@@ -35,4 +35,5 @@ Dos casos conviviendo, uno por tipo. La consulta y el reclamo tienen ciclos de v
 **5.1 — El mismo mensaje llega dos veces (idempotencia).** Resuelto.
 Dos capas: (1) antes de procesar, se busca el `messageSid` con `findUnique`; si ya existe, se ignora el mensaje sin crear caso, ni guardar mensajes, ni responder. (2) El campo `messageSid` es `@unique` en la base, como red de seguridad ante reintentos concurrentes. Cubierto por test unitario y verificado con curl (mismo SID dos veces deja el sistema igual).
 
-**5.2 — Dos mensajes
+**5.2 — Dos mensajes del mismo número casi al mismo tiempo (concurrencia).** Resuelto.
+Lock en memoria por teléfono: la operación buscar-o-crear caso se encola por número (promesas encadenadas en un Map), así dos mensajes concurrentes del mismo teléfono se procesan en fila y no generan dos casos. El lock cubre solo la sección crítica; números distintos no se bloquean entre sí. Limitación consciente: vive en memoria de una instancia; con múltiples instancias haría falta un lock distribuido o una restricción única en base. El `@unique` de `messageSid` (5.1) actúa además como red de seguridad. Cubierto por test de concurrencia.
