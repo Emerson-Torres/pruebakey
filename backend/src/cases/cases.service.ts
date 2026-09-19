@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { CaseType, CaseStatus, Direction } from '@prisma/client';
+import { CaseType, CaseStatus, Direction, MessageStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { IntentService } from '../intent/intent.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { Intencion } from '../intent/intent.enum';
-
+import { Inject } from '@nestjs/common';
+import {
+  MessagingProvider,
+  MESSAGING_PROVIDER,
+} from '../messaging/messaging.interface';
 // Datos que llegan del webhook por cada mensaje entrante.
 export interface MensajeEntrante {
   telefono: string; // el "From" de Twilio
@@ -22,10 +26,14 @@ export class CasesService {
 
   // Nest inyecta estos tres servicios automaticamente gracias a los
   // imports/exports que configuramos en los modulos.
-  constructor(
+    constructor(
     private readonly prisma: PrismaService,
     private readonly intent: IntentService,
     private readonly knowledge: KnowledgeService,
+    // Inyeccion por token: como MessagingProvider es una interfaz (no existe
+    // en runtime), usamos @Inject con el token para que Nest sepa que dar.
+    @Inject(MESSAGING_PROVIDER)
+    private readonly messaging: MessagingProvider,
   ) {}
 
   // Procesa un mensaje entrante de punta a punta: detecta intencion,
@@ -71,16 +79,35 @@ export class CasesService {
     // 5. Obtener la respuesta de la base de conocimiento.
     const respuesta = this.knowledge.obtenerRespuesta(intencion);
 
-    // 6. Guardar el mensaje SALIENTE (la respuesta del bot).
-    await this.prisma.message.create({
+       // 6. Guardar el mensaje SALIENTE como PENDING (todavia no enviado).
+    //    El entrante ya quedo a salvo (paso 4), asi que aunque el envio
+    //    falle despues, no perdemos nada (5.3).
+    const saliente = await this.prisma.message.create({
       data: {
         caseId: caso.id,
         direccion: Direction.OUTBOUND,
         texto: respuesta,
+        estado: MessageStatus.PENDING,
       },
     });
 
-    // 7. Devolver lo necesario para responder al usuario.
+    // 7. Intentar enviar la respuesta al usuario a traves del proveedor.
+    //    Si sale bien, marcamos SENT; si falla, marcamos FAILED (el
+    //    mensaje NO se pierde, queda registrado como fallido).
+    try {
+      await this.messaging.enviar(caso.telefono, respuesta);
+      await this.prisma.message.update({
+        where: { id: saliente.id },
+        data: { estado: MessageStatus.SENT },
+      });
+    } catch {
+      await this.prisma.message.update({
+        where: { id: saliente.id },
+        data: { estado: MessageStatus.FAILED },
+      });
+    }
+
+    // 8. Devolver lo necesario para responder al usuario.
     return { caso, respuesta };
   }
   // Aplica la regla "un caso activo por (telefono, tipo)":
