@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { CaseType, CaseStatus, Direction } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { IntentService } from '../intent/intent.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
@@ -21,31 +22,32 @@ export class CasesService {
     private readonly knowledge: KnowledgeService,
   ) {}
 
-  // Procesa un mensaje entrante de punta a punta (version Etapa 1: siempre
-  // crea un caso nuevo; la logica de buscar caso existente viene despues).
+  // Procesa un mensaje entrante de punta a punta: detecta intencion,
+  // busca o crea el caso, guarda el mensaje entrante, responde desde la
+  // base de conocimiento y guarda el mensaje saliente.
   async procesarMensaje(entrante: MensajeEntrante) {
     // 1. Detectar la intencion del texto.
     const intencion = this.intent.detectar(entrante.texto);
 
     // 2. Derivar el tipo de caso a partir de la intencion.
-    //    Solo RECLAMO abre un caso tipo RECLAMO; el resto son CONSULTA.
-    const tipo = intencion === Intencion.RECLAMO ? 'RECLAMO' : 'CONSULTA';
+    //    Solo RECLAMO abre un caso RECLAMO; el resto son CONSULTA.
+    const tipo: CaseType =
+      intencion === Intencion.RECLAMO ? CaseType.RECLAMO : CaseType.CONSULTA;
 
-    // 3. Crear el caso en la base.
-    const caso = await this.prisma.case.create({
-      data: {
-        telefono: entrante.telefono,
-        tipo,
-        intencion,
-      },
-    });
+    // 3. Buscar o crear el caso segun la regla "un caso activo por
+    //    (telefono, tipo)".
+    const caso = await this.buscarOCrearCaso(
+      entrante.telefono,
+      tipo,
+      intencion,
+    );
 
     // 4. Guardar el mensaje ENTRANTE, ligado al caso.
     await this.prisma.message.create({
       data: {
         caseId: caso.id,
         messageSid: entrante.messageSid,
-        direccion: 'INBOUND',
+        direccion: Direction.INBOUND,
         texto: entrante.texto,
         intencion,
       },
@@ -58,13 +60,48 @@ export class CasesService {
     await this.prisma.message.create({
       data: {
         caseId: caso.id,
-        direccion: 'OUTBOUND',
+        direccion: Direction.OUTBOUND,
         texto: respuesta,
-        // los salientes no tienen messageSid (no vienen de Twilio)
       },
     });
 
     // 7. Devolver lo necesario para responder al usuario.
     return { caso, respuesta };
+  }
+
+  // Aplica la regla "un caso activo por (telefono, tipo)":
+  // busca un caso de ese telefono y tipo que no este CERRADO; si lo
+  // encuentra lo reutiliza (y actualiza su ultima intencion), si no
+  // crea uno nuevo.
+  private async buscarOCrearCaso(
+    telefono: string,
+    tipo: CaseType,
+    intencion: Intencion,
+  ) {
+    // Buscar un caso activo (no CERRADO) de este telefono y este tipo.
+    const casoExistente = await this.prisma.case.findFirst({
+      where: {
+        telefono,
+        tipo,
+        estado: { not: CaseStatus.CERRADO },
+      },
+    });
+
+    // Si existe, lo reutilizamos y actualizamos su ultima intencion.
+    if (casoExistente) {
+      return this.prisma.case.update({
+        where: { id: casoExistente.id },
+        data: { intencion },
+      });
+    }
+
+    // Si no existe, creamos uno nuevo.
+    return this.prisma.case.create({
+      data: {
+        telefono,
+        tipo,
+        intencion,
+      },
+    });
   }
 }
