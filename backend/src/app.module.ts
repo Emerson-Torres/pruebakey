@@ -4,12 +4,13 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { IntentModule } from './intent/intent.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
+import { CasesModule } from './cases/cases.module';
 
 // Modulo raiz de la aplicacion: aca se registran los modulos, controllers
 // y providers que arma toda la app. Mas adelante vamos a sumar aca los
 // modulos de whatsapp, cases, messaging e intent.
 @Module({
-  imports: [PrismaModule, IntentModule, KnowledgeModule],
+  imports: [PrismaModule, IntentModule, KnowledgeModule, CasesModule],
   controllers: [AppController],
   providers: [AppService],
 })
