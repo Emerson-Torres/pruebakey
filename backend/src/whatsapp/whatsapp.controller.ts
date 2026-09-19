@@ -15,10 +15,13 @@ export class WhatsappController {
   @Post('whatsapp')
   @HttpCode(200) // responder 200 rapido: si Twilio no recibe 200 a tiempo, reintenta
   async recibirMensaje(@Body() payload: TwilioWebhookDto) {
-    // Twilio manda el remitente como "whatsapp:+50370000000".
-    // Le quitamos el prefijo "whatsapp:" para guardar solo el numero.
-    const telefono = payload.From?.replace('whatsapp:', '') ?? '';
-
+    // Twilio manda el numero como "whatsapp:+503...". Quitamos el prefijo.
+    // El form-encoding convierte "+" en espacio, asi que si quedo un
+    // espacio al inicio lo devolvemos a "+", y limpiamos los bordes.
+    let telefono = (payload.From ?? '').replace('whatsapp:', '').trim();
+    if (!telefono.startsWith('+')) {
+      telefono = '+' + telefono;
+    }
     // Traducimos del formato de Twilio (PascalCase) al que espera
     // nuestro servicio (la interfaz MensajeEntrante).
         const resultado = await this.cases.procesarMensaje({

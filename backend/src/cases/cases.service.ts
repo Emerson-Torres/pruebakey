@@ -1,10 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { CaseType, CaseStatus, Direction, MessageStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { IntentService } from '../intent/intent.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { Intencion } from '../intent/intent.enum';
-import { Inject } from '@nestjs/common';
 import {
   MessagingProvider,
   MESSAGING_PROVIDER,
@@ -166,5 +170,63 @@ export class CasesService {
     );
 
     return miTurno;
+  }
+
+    // --- Metodos de lectura para el panel administrativo ---
+
+  // Lista casos con filtros opcionales por tipo y estado.
+  // Por defecto (sin filtro de estado) devuelve solo los activos
+  // (ABIERTO y EN_PROCESO); los CERRADO son historial y se piden aparte.
+  async listarCasos(filtros: { tipo?: CaseType; estado?: CaseStatus }) {
+    return this.prisma.case.findMany({
+      where: {
+        // Si viene un tipo, filtra por el; si no, no restringe por tipo.
+        ...(filtros.tipo ? { tipo: filtros.tipo } : {}),
+        // Si viene un estado, filtra por ese estado exacto; si no,
+        // por defecto muestra solo los activos (no CERRADO).
+        ...(filtros.estado
+          ? { estado: filtros.estado }
+          : { estado: { not: CaseStatus.CERRADO } }),
+      },
+      // Los mas recientes primero (por ultima actualizacion).
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  // Obtiene un caso por id, con su hilo completo de mensajes ordenado
+  // cronologicamente. Devuelve null si el caso no existe.
+  async obtenerCaso(id: string) {
+    return this.prisma.case.findUnique({
+      where: { id },
+      // include trae los mensajes relacionados en la misma consulta.
+      include: {
+        mensajes: {
+          orderBy: { createdAt: 'asc' }, // del mas viejo al mas nuevo
+        },
+      },
+    });
+  }
+
+    // Cambia el estado de un caso (lo usa el panel: ABIERTO -> EN_PROCESO
+  // -> CERRADO). Valida que el estado recibido sea uno valido y que el
+  // caso exista, antes de actualizar.
+  async cambiarEstado(id: string, estado: CaseStatus) {
+    // Validacion: el estado debe ser uno de los valores permitidos.
+    // Object.values(CaseStatus) da ['ABIERTO','EN_PROCESO','CERRADO'].
+    if (!Object.values(CaseStatus).includes(estado)) {
+      throw new BadRequestException(`Estado invalido: ${estado}`);
+    }
+
+    // Validacion: el caso debe existir.
+    const existe = await this.prisma.case.findUnique({ where: { id } });
+    if (!existe) {
+      throw new NotFoundException(`Caso ${id} no encontrado`);
+    }
+
+    // Actualiza solo el estado; updatedAt se refresca solo (@updatedAt).
+    return this.prisma.case.update({
+      where: { id },
+      data: { estado },
+    });
   }
 }

@@ -27,6 +27,10 @@ Dos casos conviviendo, uno por tipo. La consulta y el reclamo tienen ciclos de v
 
 **Regla que sostiene 6.1, 6.2 y 6.4:** un caso activo por (teléfono, tipo). Al llegar un mensaje se detecta la intención, se deriva el tipo, y se busca un caso de ese teléfono y ese tipo que no esté CERRADO: si existe se le agrega el mensaje, si no se crea uno nuevo.
 
+
+**Diseño del panel (derivado de las decisiones anteriores).**
+- Vista por defecto: solo casos ABIERTO y EN_PROCESO (los CERRADO son historial, se consultan con filtro explícito). Más eficiente para el operador, que ve solo lo pendiente.
+- Cambio de estado explícito, no automático: el operador avanza el caso con un botón según su estado actual (ABIERTO → "Tomar caso" → EN_PROCESO → "Cerrar caso" → CERRADO). Se evita cambiar el estado como efecto secundario de abrir el detalle, para no marcar casos "en proceso" que nadie está atendiendo. La API expone un PATCH genérico de estado; la regla de flujo vive en el frontend.
 ---
 
 ## 3 · Robustez (sección 5)
@@ -37,3 +41,6 @@ Dos capas: (1) antes de procesar, se busca el `messageSid` con `findUnique`; si 
 
 **5.2 — Dos mensajes del mismo número casi al mismo tiempo (concurrencia).** Resuelto.
 Lock en memoria por teléfono: la operación buscar-o-crear caso se encola por número (promesas encadenadas en un Map), así dos mensajes concurrentes del mismo teléfono se procesan en fila y no generan dos casos. El lock cubre solo la sección crítica; números distintos no se bloquean entre sí. Limitación consciente: vive en memoria de una instancia; con múltiples instancias haría falta un lock distribuido o una restricción única en base. El `@unique` de `messageSid` (5.1) actúa además como red de seguridad. Cubierto por test de concurrencia.
+
+**5.3 — El proveedor de mensajería se cae.** Resuelto (versión simple).
+El envío está detrás de una interfaz propia (`MessagingProvider`); la implementación por defecto (`LogMessagingProvider`) no requiere credenciales y se elige por `MESSAGING_PROVIDER` en el `.env`. El saliente se guarda como PENDING antes de intentar enviarlo; si el envío tiene éxito pasa a SENT, si falla pasa a FAILED. Así el entrante nunca se pierde y el saliente queda registrado aunque el proveedor esté caído. Descarté el worker/outbox con reintentos en background por alcance: para el prototipo, registrar el estado del envío alcanza; en producción agregaría una cola con reintentos.
