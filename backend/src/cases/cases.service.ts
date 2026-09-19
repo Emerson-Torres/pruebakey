@@ -14,6 +14,12 @@ export interface MensajeEntrante {
 
 @Injectable()
 export class CasesService {
+  // Fila de espera por telefono para evitar casos duplicados por
+  // concurrencia (5.2). La clave es el telefono; el valor es la ultima
+  // promesa encolada para ese telefono. Cada telefono tiene su propia
+  // fila, asi numeros distintos no se bloquean entre si.
+  private readonly locks = new Map<string, Promise<unknown>>();
+
   // Nest inyecta estos tres servicios automaticamente gracias a los
   // imports/exports que configuramos en los modulos.
   constructor(
@@ -44,14 +50,13 @@ export class CasesService {
     const tipo: CaseType =
       intencion === Intencion.RECLAMO ? CaseType.RECLAMO : CaseType.CONSULTA;
 
-    // 3. Buscar o crear el caso segun la regla "un caso activo por
-    //    (telefono, tipo)".
-    const caso = await this.buscarOCrearCaso(
-      entrante.telefono,
-      tipo,
-      intencion,
+    // 3. Buscar o crear el caso, protegido por el lock por telefono (5.2).
+    //    Si dos mensajes del mismo numero llegan casi al mismo tiempo,
+    //    conLock los pone en fila: el segundo espera a que el primero
+    //    termine de crear el caso, y asi lo reutiliza en vez de duplicarlo.
+    const caso = await this.conLock(entrante.telefono, () =>
+      this.buscarOCrearCaso(entrante.telefono, tipo, intencion),
     );
-
     // 4. Guardar el mensaje ENTRANTE, ligado al caso.
     await this.prisma.message.create({
       data: {
@@ -112,5 +117,27 @@ export class CasesService {
         intencion,
       },
     });
+  }
+  // Serializa las tareas de un mismo telefono: la nueva tarea espera a
+  // que termine la anterior antes de ejecutarse. Es el "lock" de 5.2.
+  private conLock<T>(telefono: string, tarea: () => Promise<T>): Promise<T> {
+    // Ultima promesa en la fila de este telefono. Si no hay ninguna,
+    // arrancamos con una ya resuelta (fila vacia = se ejecuta de una).
+    const filaAnterior = this.locks.get(telefono) ?? Promise.resolve();
+
+    // Encadenamos nuestra tarea DESPUES de la fila anterior: recien se
+    // ejecuta cuando la anterior termina.
+    const miTurno = filaAnterior.then(() => tarea());
+
+    // Nos registramos como la nueva ultima de la fila, para que la
+    // proxima peticion de este telefono espere por nosotros.
+    // El .catch(() => {}) evita que un error en una tarea rompa la
+    // cadena y deje trabada la fila del telefono.
+    this.locks.set(
+      telefono,
+      miTurno.catch(() => {}),
+    );
+
+    return miTurno;
   }
 }

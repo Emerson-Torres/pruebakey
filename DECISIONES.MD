@@ -31,7 +31,8 @@ Dos casos conviviendo, uno por tipo. La consulta y el reclamo tienen ciclos de v
 
 ## 3 · Robustez (sección 5)
 
-**5.1 — El mismo mensaje llega dos veces (idempotencia).**
-El campo `messageSid` (el ID único que Twilio asigna a cada mensaje entrante) tiene restricción de unicidad en la base. Si el mismo mensaje llega de nuevo, el segundo intento de guardarlo falla de forma controlada y no se duplica el mensaje, ni se abre otro caso, ni se responde dos veces.
+
+**5.1 — El mismo mensaje llega dos veces (idempotencia).** Resuelto.
+Dos capas: (1) antes de procesar, se busca el `messageSid` con `findUnique`; si ya existe, se ignora el mensaje sin crear caso, ni guardar mensajes, ni responder. (2) El campo `messageSid` es `@unique` en la base, como red de seguridad ante reintentos concurrentes. Cubierto por test unitario y verificado con curl (mismo SID dos veces deja el sistema igual).
 
 **5.2 — Dos mensajes

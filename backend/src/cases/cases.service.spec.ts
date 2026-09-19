@@ -210,4 +210,61 @@ describe('CasesService', () => {
       },
     });
   });
+
+    // --- Concurrencia (5.2): dos mensajes del mismo numero a la vez ---
+
+  it('no crea casos duplicados cuando llegan dos mensajes del mismo numero a la vez', async () => {
+    // Simulamos la condicion de carrera: hacemos que findFirst tarde un
+    // poco antes de responder null. Esto abre la ventana donde, sin lock,
+    // las dos peticiones verian "no hay caso" y crearian una cada una.
+    let casoCreado: { id: string } | null = null;
+
+    prismaMock.case.findFirst.mockImplementation(async () => {
+      // Espera artificial de 20ms para simular latencia de la base.
+      await new Promise((r) => setTimeout(r, 20));
+      // Devuelve el caso si YA fue creado por una peticion anterior; si no, null.
+      return casoCreado;
+    });
+
+    // Cuando se crea el caso, lo "guardamos" para que el siguiente
+    // findFirst ya lo vea (simula el estado real de la base).
+    prismaMock.case.create.mockImplementation(async () => {
+      // Demora ANTES de registrar el caso: asi, sin lock, la segunda
+      // peticion alcanza a hacer su findFirst mientras esta primera
+      // todavia no termino de "crear", y veria null -> crearia otro caso.
+      await new Promise((r) => setTimeout(r, 20));
+      casoCreado = { id: 'caso-unico' };
+      return casoCreado;
+    });
+
+    prismaMock.case.update.mockResolvedValue({ id: 'caso-unico' });
+    prismaMock.message.create.mockResolvedValue({});
+
+    // Dos mensajes del MISMO numero, con messageSid distintos (son mensajes
+    // distintos, no un duplicado), disparados EN PARALELO.
+    const mensaje1: MensajeEntrante = {
+      telefono: '+50388888888',
+      texto: 'quiero poner un reclamo',
+      messageSid: 'SM-A',
+    };
+    const mensaje2: MensajeEntrante = {
+      telefono: '+50388888888',
+      texto: 'quiero poner un reclamo',
+      messageSid: 'SM-B',
+    };
+
+    // Promise.all los lanza a la vez, sin esperar que el primero termine.
+    await Promise.all([
+      service.procesarMensaje(mensaje1),
+      service.procesarMensaje(mensaje2),
+    ]);
+
+    // La prueba de fuego: aunque corrieron en paralelo, solo se creo
+    // UN caso. El lock obligo al segundo a esperar al primero, y asi
+    // vio el caso ya creado y lo reutilizo (update) en vez de crear otro.
+    expect(prismaMock.case.create).toHaveBeenCalledTimes(1);
+  });
+
+
+
 });
