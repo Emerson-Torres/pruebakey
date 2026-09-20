@@ -7,7 +7,7 @@ Backend NestJS · Frontend Next.js · SQLite + Prisma.
 
 ## 1 · Qué construí y qué dejé fuera
 
-Un bot de WhatsApp en NestJS que recibe los mensajes por webhook, les detecta la intención por reglas (sin LLM), responde con data de Key Institute cargada por seed y va guardando los casos con su hilo. El panel en Next.js lista, filtra, muestra el detalle y deja cambiar el estado del caso. Todo sobre SQLite con Prisma. Las tres de robustez las cubrí: idempotencia por messageSid único, concurrencia con un lock por teléfono, y el proveedor de mensajería detrás de una interfaz por si un día falla o se cambia. Dejé fuera Twilio real (queda como otra implementación de esa misma interfaz), el outbox con reintentos en background (lo resolví en simple: guardo el saliente y marco SENT/FAILED) y el login del panel, porque para el alcance no aportaba.
+Un bot de WhatsApp en NestJS que recibe los mensajes por webhook, les detecta la intención por reglas (sin LLM), responde con data de Key Institute cargada por seed y va guardando los casos con su hilo. El panel en Next.js lista, filtra, muestra el detalle y deja cambiar el estado del caso. Todo sobre SQLite con Prisma. Las tres de robustez las cubrí: idempotencia por messageSid único, concurrencia con un lock por teléfono, y el proveedor de mensajería detrás de una interfaz por si un día falla o se cambia. Twilio real quedó como plus (ver sección 4), el outbox con reintentos en background (lo resolví en simple: guardo el saliente y marco SENT/FAILED) y el login del panel, porque para el alcance no aportaba.
 
 ---
 
@@ -49,7 +49,7 @@ El envío va detrás de una interfaz propia (`MessagingProvider`); la implementa
 
 El scaffold arrancó con NestJS 12, que viene ESM-only y necesita Node 24.9+ para poder correr los tests con Jest. Bajé los paquetes de Nest a la versión 11 (que trae build CommonJS) por compatibilidad con Jest en la versión de Node que tengo, y porque es la versión más estable y documentada para un ejercicio con plazo corto. Preferí terreno firme antes que la última versión.
 
-También descarté Twilio real por ahora: es plus opcional y no compensa faltantes de
+Sobre Twilio: lo trabajé como plus (sección 10). Implementé el `TwilioMessagingProvider` como segunda implementación de la interfaz `MessagingProvider`, que envía por la API real de WhatsApp. Agregarlo fue una clase nueva más un `case` en el módulo, sin tocar nada del resto — que es justo el punto de la sección 3.2, aislar el proveedor externo. Se elige por `.env`: `log` por defecto (sin credenciales) o `twilio`. No completé la demo en vivo porque la cuenta trial de Twilio pone la configuración del webhook del sandbox detrás de un upgrade de pago (está documentado por Twilio); el código queda listo para conectar en una cuenta con ese acceso.
 
 ## 5 · Lo que menos entiendo de mi propia entrega
 
@@ -59,6 +59,3 @@ La parte más delicada es el lock en memoria de la concurrencia (5.2). Para una 
 
 Primero atacaría la concurrencia para varias instancias: cambiaría el lock en memoria por una garantía a nivel de base (una restricción única sobre el caso activo por teléfono y tipo) o un lock distribuido, así deja de depender de que todo pase por un solo proceso. Es lo que hoy tiene el techo más bajo. Después le metería el outbox de verdad: una cola con reintentos en background para los mensajes salientes, en vez de marcar SENT/FAILED en el momento. Con eso, un proveedor caído se recupera solo cuando vuelve. Tercero, la integración real con Twilio como segunda implementación de la interfaz de mensajería (ya está el punto de enganche, es una clase nueva más el ngrok para exponer el webhook). Y si sobra, autenticación en el panel, que hoy está abierto.
 
-## 7 · Plus de la prueba
-
-También trabajé la integración real con Twilio como plus (sección 10): implementé el `TwilioMessagingProvider` como segunda implementación de la interfaz `MessagingProvider`, que envía por la API real de WhatsApp. Agregarlo fue una clase nueva más un `case` en el módulo, sin tocar nada del resto del sistema — que es justo el punto de la sección 3.2, aislar el proveedor externo. La configuración por `.env` deja elegir `log` (por defecto, sin credenciales) o `twilio`. No completé la demo en vivo con el sandbox porque la cuenta trial de Twilio pone la configuración del webhook detrás de un upgrade de pago; el código queda listo para conectar (webhook + ngrok) en una cuenta con acceso.

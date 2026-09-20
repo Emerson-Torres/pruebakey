@@ -15,7 +15,7 @@ import { TwilioMessagingProvider } from './twilio-messaging.provider';
         const tipo = config.get<string>('MESSAGING_PROVIDER') ?? 'log';
 
         // Hoy hay una sola implementacion sin credenciales (log).
-        // Agregar Twilio seria: otra clase que implemente MessagingProvider
+        // Agregar Twilio es: otra clase que implemente MessagingProvider
         // y un case mas aca. El resto del sistema no cambia.
           switch (tipo) {
           case 'twilio':
