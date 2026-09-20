@@ -132,13 +132,17 @@ Cubren la detección de intención, la lógica de casos (crear, reutilizar, regl
 
 ### End-to-end (Playwright) — frontend
 
-La prueba E2E recorre el flujo completo del panel. **Necesita el backend y el frontend levantados** (pasos 1 y 2 de arriba). Con ambos corriendo, en una tercera terminal, desde `frontend/`:
+La prueba E2E recorre el flujo completo del panel. **Necesita el backend y el frontend levantados** (pasos 1 y 2 de arriba).
+
+La primera vez, instalá los navegadores que usa Playwright (desde `frontend/`):
+
+    npx playwright install
+
+Después, con el backend y el frontend corriendo, en una tercera terminal desde `frontend/`:
 
     npx playwright test
 
 Simula la llegada de un reclamo al webhook, verifica que aparece en el panel, filtra por estado y comprueba que se muestra el hilo de mensajes.
-
----
 
 ## Endpoints principales
 
