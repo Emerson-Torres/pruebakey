@@ -1,10 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  CaseType,
-  CaseStatus,
-  Direction,
-  MessageStatus,
-} from '@prisma/client';
+import { CaseType, CaseStatus, Direction, MessageStatus } from '@prisma/client';
 import { CasesService, MensajeEntrante } from './cases.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { IntentService } from '../intent/intent.service';

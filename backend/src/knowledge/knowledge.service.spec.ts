@@ -19,7 +19,9 @@ describe('KnowledgeService', () => {
   });
 
   it('la respuesta de FECHAS_PAGO cubre admision y mensualidad (decision 6.3)', () => {
-    const respuesta = service.obtenerRespuesta(Intencion.FECHAS_PAGO).toLowerCase();
+    const respuesta = service
+      .obtenerRespuesta(Intencion.FECHAS_PAGO)
+      .toLowerCase();
     expect(respuesta).toContain('admisión');
     expect(respuesta).toContain('mensualidad');
   });

@@ -6,11 +6,23 @@ import { Intencion } from './intent.enum';
 // que coincide. Por eso RECLAMO va primero (decision 6.1: si alguien
 // dice "reclamo por mi inscripcion", debe ganar RECLAMO sobre INSCRIPCION).
 const CATALOGO: { intencion: Intencion; keywords: string[] }[] = [
-  { intencion: Intencion.RECLAMO, keywords: ['reclamo', 'reclamar', 'queja', 'problema'] },
+  {
+    intencion: Intencion.RECLAMO,
+    keywords: ['reclamo', 'reclamar', 'queja', 'problema'],
+  },
   { intencion: Intencion.INSCRIPCION, keywords: ['inscri', 'requisitos'] },
-  { intencion: Intencion.FECHAS_PAGO, keywords: ['pago', 'pagar', 'matricula', 'cuota', 'cuotas'] },
-  { intencion: Intencion.FECHAS_CICLOS, keywords: ['ciclo', 'inicio', 'empieza', 'semestre', 'arranca'] },
-  { intencion: Intencion.ADMISIONES, keywords: ['admision', 'carrera', 'ingenieria', 'contacto'] },
+  {
+    intencion: Intencion.FECHAS_PAGO,
+    keywords: ['pago', 'pagar', 'matricula', 'cuota', 'cuotas'],
+  },
+  {
+    intencion: Intencion.FECHAS_CICLOS,
+    keywords: ['ciclo', 'inicio', 'empieza', 'semestre', 'arranca'],
+  },
+  {
+    intencion: Intencion.ADMISIONES,
+    keywords: ['admision', 'carrera', 'ingenieria', 'contacto'],
+  },
 ];
 
 @Injectable()

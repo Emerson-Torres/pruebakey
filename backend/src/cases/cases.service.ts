@@ -30,7 +30,7 @@ export class CasesService {
 
   // Nest inyecta estos tres servicios automaticamente gracias a los
   // imports/exports que configuramos en los modulos.
-    constructor(
+  constructor(
     private readonly prisma: PrismaService,
     private readonly intent: IntentService,
     private readonly knowledge: KnowledgeService,
@@ -83,7 +83,7 @@ export class CasesService {
     // 5. Obtener la respuesta de la base de conocimiento.
     const respuesta = this.knowledge.obtenerRespuesta(intencion);
 
-       // 6. Guardar el mensaje SALIENTE como PENDING (todavia no enviado).
+    // 6. Guardar el mensaje SALIENTE como PENDING (todavia no enviado).
     //    El entrante ya quedo a salvo (paso 4), asi que aunque el envio
     //    falle despues, no perdemos nada (5.3).
     const saliente = await this.prisma.message.create({
@@ -172,7 +172,7 @@ export class CasesService {
     return miTurno;
   }
 
-    // --- Metodos de lectura para el panel administrativo ---
+  // --- Metodos de lectura para el panel administrativo ---
 
   // Lista casos con filtros opcionales por tipo y estado.
   // Por defecto (sin filtro de estado) devuelve solo los activos
@@ -207,7 +207,7 @@ export class CasesService {
     });
   }
 
-    // Cambia el estado de un caso (lo usa el panel: ABIERTO -> EN_PROCESO
+  // Cambia el estado de un caso (lo usa el panel: ABIERTO -> EN_PROCESO
   // -> CERRADO). Valida que el estado recibido sea uno valido y que el
   // caso exista, antes de actualizar.
   async cambiarEstado(id: string, estado: CaseStatus) {

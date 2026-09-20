@@ -24,7 +24,7 @@ export class WhatsappController {
     }
     // Traducimos del formato de Twilio (PascalCase) al que espera
     // nuestro servicio (la interfaz MensajeEntrante).
-        const resultado = await this.cases.procesarMensaje({
+    const resultado = await this.cases.procesarMensaje({
       telefono,
       texto: payload.Body,
       messageSid: payload.MessageSid,

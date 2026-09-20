@@ -13,12 +13,16 @@ describe('IntentService', () => {
   // --- Casos por cada intencion del catalogo ---
 
   it('detecta FECHAS_CICLOS cuando se pregunta por el inicio del ciclo', () => {
-    expect(service.detectar('¿cuándo empieza el ciclo?')).toBe(Intencion.FECHAS_CICLOS);
+    expect(service.detectar('¿cuándo empieza el ciclo?')).toBe(
+      Intencion.FECHAS_CICLOS,
+    );
   });
 
   it('detecta FECHAS_PAGO sin importar mayusculas ni acentos', () => {
     // Prueba especifica de normalizacion: "Matrícula" con tilde y mayuscula
-    expect(service.detectar('fechas de pago de Matrícula')).toBe(Intencion.FECHAS_PAGO);
+    expect(service.detectar('fechas de pago de Matrícula')).toBe(
+      Intencion.FECHAS_PAGO,
+    );
   });
 
   it('detecta INSCRIPCION cuando preguntan como inscribirse', () => {
@@ -26,7 +30,9 @@ describe('IntentService', () => {
   });
 
   it('detecta ADMISIONES cuando preguntan por una carrera', () => {
-    expect(service.detectar('info sobre admisión a ingeniería')).toBe(Intencion.ADMISIONES);
+    expect(service.detectar('info sobre admisión a ingeniería')).toBe(
+      Intencion.ADMISIONES,
+    );
   });
 
   it('detecta RECLAMO con el mensaje directo', () => {
@@ -45,7 +51,8 @@ describe('IntentService', () => {
     // Este es el ejemplo textual de la seccion 6 de la prueba tecnica:
     // "reclamo por tres dias esperando respuesta sobre mi inscripcion"
     // debe ganar RECLAMO, no INSCRIPCION.
-    const texto = 'quiero poner un reclamo porque llevo tres días esperando respuesta sobre mi inscripción';
+    const texto =
+      'quiero poner un reclamo porque llevo tres días esperando respuesta sobre mi inscripción';
     expect(service.detectar(texto)).toBe(Intencion.RECLAMO);
   });
 
@@ -53,6 +60,8 @@ describe('IntentService', () => {
 
   it('no confunde palabras parecidas (word boundary)', () => {
     // "empago" contiene la letra secuencia "pago" pero no es la palabra "pago"
-    expect(service.detectar('mi empresa se llama empago solutions')).toBe(Intencion.DESCONOCIDA);
+    expect(service.detectar('mi empresa se llama empago solutions')).toBe(
+      Intencion.DESCONOCIDA,
+    );
   });
 });
