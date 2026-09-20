@@ -13,7 +13,7 @@ async function main() {
   // 2. Caso RECLAMO abierto, con su hilo de mensajes.
   await prisma.case.create({
     data: {
-      telefono: '+50377770001',
+      telefono: '+50378124567',
       tipo: CaseType.RECLAMO,
       estado: CaseStatus.ABIERTO,
       intencion: 'RECLAMO',
@@ -40,7 +40,7 @@ async function main() {
   // 3. Caso CONSULTA en proceso (alguien ya lo esta atendiendo).
   await prisma.case.create({
     data: {
-      telefono: '+50377770002',
+      telefono: '+50361239870',
       tipo: CaseType.CONSULTA,
       estado: CaseStatus.EN_PROCESO,
       intencion: 'FECHAS_PAGO',
@@ -67,7 +67,7 @@ async function main() {
   // 4. Caso CONSULTA abierto (recien llegado, sin atender).
   await prisma.case.create({
     data: {
-      telefono: '+50377770003',
+      telefono: '+50370459812',
       tipo: CaseType.CONSULTA,
       estado: CaseStatus.ABIERTO,
       intencion: 'INSCRIPCION',
@@ -94,7 +94,7 @@ async function main() {
   // 5. Caso RECLAMO cerrado (historial: no aparece en la vista por defecto).
   await prisma.case.create({
     data: {
-      telefono: '+50377770004',
+      telefono: '+50376583201',
       tipo: CaseType.RECLAMO,
       estado: CaseStatus.CERRADO,
       intencion: 'RECLAMO',
