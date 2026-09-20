@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MESSAGING_PROVIDER } from './messaging.interface';
 import { LogMessagingProvider } from './log-messaging.provider';
-
+import { TwilioMessagingProvider } from './twilio-messaging.provider';
 @Module({
   providers: [
     {
@@ -17,7 +17,9 @@ import { LogMessagingProvider } from './log-messaging.provider';
         // Hoy hay una sola implementacion sin credenciales (log).
         // Agregar Twilio seria: otra clase que implemente MessagingProvider
         // y un case mas aca. El resto del sistema no cambia.
-        switch (tipo) {
+          switch (tipo) {
+          case 'twilio':
+            return new TwilioMessagingProvider(config);
           case 'log':
           default:
             return new LogMessagingProvider();
